@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GLM Bourse — دستیار امتیازدهی بورس</title>
+<style>
+  :root{
+    --bg:#0b101b; --panel:#131a2a; --panel2:#1a2338; --border:#28324e;
+    --text:#e9edf5; --muted:#8b93ab; --accent:#4f8cff;
+    --green:#2fbf71; --red:#e5484d; --amber:#e0a638; --gray:#6b7280;
+  }
+  *{box-sizing:border-box}
+  body{background:radial-gradient(1200px 600px at 80% -10%, #16233d 0%, var(--bg) 55%);
+       color:var(--text);font-family:"Vazirmatn","Segoe UI",Tahoma,sans-serif;margin:0;
+       padding:24px;line-height:1.85;min-height:100vh}
+  h1{font-size:22px;margin:0;display:flex;align-items:center;gap:10px}
+  h1 .logo{background:linear-gradient(135deg,var(--accent),#7c5cff);width:34px;height:34px;
+       border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:18px}
+  .sub{color:var(--muted);font-size:13px;margin:4px 0 22px}
+  .grid{display:grid;grid-template-columns:1fr;gap:18px;max-width:980px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;
+        box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
+  input[type=text],input[type=number]{
+    width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:10px;
+    color:var(--text);padding:11px 13px;font-family:inherit;font-size:15px}
+  input:focus{outline:none;border-color:var(--accent)}
+  button{cursor:pointer;border:none;border-radius:10px;padding:12px 20px;font-family:inherit;
+         font-size:14px;font-weight:700}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#3a6fe0);color:#fff;width:100%;margin-top:16px}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+  .msg{padding:10px 14px;border-radius:10px;font-size:13px;margin-top:12px}
+  .msg.error{background:#3a1620;color:#ff8b8f;border:1px solid #5c2530}
+  .msg.info{background:#122238;color:#9cc2ff;border:1px solid #24365c}
+  .badge{display:inline-block;padding:5px 14px;border-radius:999px;font-size:14px;font-weight:800}
+  .b-buy{background:#123a2a;color:var(--green)} .b-sell{background:#3a1620;color:var(--red)}
+  .b-hold{background:#3a2f12;color:var(--amber)} .b-watch{background:#22263a;color:#9aa5c0}
+  .row{display:flex;gap:10px;align-items:center}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:right}
+  th{color:var(--muted);font-weight:500}
+  a{color:var(--accent);text-decoration:none}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid #ffffff55;border-top-color:#fff;
+        border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-left:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  /* ---- کارت نتیجه ---- */
+  .result-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+  .gauge-wrap{position:relative;width:120px;height:120px;flex:none}
+  .gauge-wrap svg{transform:rotate(-90deg)}
+  .gauge-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .gauge-num b{font-size:28px;line-height:1}
+  .gauge-num span{font-size:11px;color:var(--muted)}
+  .comp-row{display:grid;grid-template-columns:190px 1fr 46px;gap:10px;align-items:center;font-size:13px;margin:7px 0}
+  .comp-row .reason{grid-column:1/-1;color:var(--muted);font-size:12px;margin-top:-4px}
+  .bar{background:var(--panel2);border-radius:999px;height:9px;overflow:hidden;border:1px solid var(--border)}
+  .bar > i{display:block;height:100%;border-radius:999px}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:7px 12px;font-size:14px;margin:14px 0}
+  .kv b{color:var(--muted);font-weight:500}
+  ul.plain{margin:6px 0;padding-inline-start:20px}
+  ul.plain li{margin:2px 0}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.two-col{grid-template-columns:1fr}}
+  .agents-trail{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .agent-chip{background:var(--panel2);border:1px solid var(--border);border-radius:999px;
+              padding:4px 12px;font-size:12px;color:var(--muted)}
+  .agent-chip b{color:var(--text)}
+  .weight-slider{display:grid;grid-template-columns:170px 1fr 52px;gap:10px;align-items:center;
+                 font-size:13px;margin:8px 0}
+  input[type=range]{accent-color:var(--accent);width:100%}
+  details summary{cursor:pointer;color:var(--muted);font-size:13px}
+  .disclaimer{font-size:12px;color:var(--muted);border-top:1px dashed var(--border);margin-top:14px;padding-top:10px}
+  .sig-sell{color:var(--red)} .sig-buy{color:var(--green)} .sig-hold{color:var(--amber)}
+</style>
+</head>
+<body>
+<div class="grid">
+  <div>
+    <h1><span class="logo">🤖</span> GLM Bourse <small style="font-size:12px;color:var(--muted);font-weight:400">سیستم ۴ ایجنته امتیازدهی بورس ایران</small></h1>
+    <div class="sub">جمع‌آوری دیتای زنده TSETMC ← پردازش و امتیازدهی وزنی ← نقاط تاکتیکی ← اعلام سیگنال — همه محلی و بدون API خارجی</div>
+  </div>
+
+  <div class="card">
+    <form id="form">
+      <label>نماد (چند نماد: با کاما جدا کنید)</label>
+      <input type="text" id="symbols" value="{{ default_symbols }}" placeholder="مثلاً: فولاد، فملی، شبندر" required>
+      <button type="submit" class="btn-primary" id="btn">🚀 اجرای زنجیره ۴ ایجنت</button>
+    </form>
+    <div id="msg"></div>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="card">
+    <details>
+      <summary>⚙️ تنظیم وزن پارامترها و آستانه‌های سیگنال</summary>
+      <div style="margin-top:14px">
+        {% for key, label in labels.items() %}
+        <div class="weight-slider">
+          <span>{{ label }}</span>
+          <input type="range" min="0" max="40" step="1" id="w_{{ key }}" value="{{ (weights.get(key, 0) * 100) | round | int }}">
+          <span id="wv_{{ key }}">{{ ((weights.get(key, 0) * 100) | round | int) }}٪</span>
+        </div>
+        {% endfor %}
+        <div class="row" style="margin-top:14px;flex-wrap:wrap">
+          <div><label>آستانه خرید ≥</label><input type="number" id="th_buy" value="{{ thresholds.get('buy',70) }}" style="width:90px"></div>
+          <div><label>آستانه نگهداری ≥</label><input type="number" id="th_hold" value="{{ thresholds.get('hold',55) }}" style="width:90px"></div>
+          <div><label>آستانه نظاره ≥</label><input type="number" id="th_watch" value="{{ thresholds.get('watch',40) }}" style="width:90px"></div>
+          <div><label>حداکثر ریسک هر معامله ٪</label><input type="number" step="0.5" id="risk" value="{{ risk_pct }}" style="width:90px"></div>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button type="button" class="btn-ghost" id="saveCfg">💾 ذخیره تنظیمات</button>
+          <span class="sub" id="cfgMsg"></span>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong>📅 تاریخچه تحلیل‌ها</strong>
+      <button type="button" class="btn-ghost" id="refresh">بروزرسانی</button>
+    </div>
+    <table>
+      <thead><tr><th>زمان</th><th>نماد</th><th>امتیاز</th><th>سیگنال</th><th></th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<template id="tpl">
+  <div class="card" style="margin-bottom:18px">
+    <div class="result-head">
+      <div>
+        <div style="font-size:19px;font-weight:800" class="res-symbol"></div>
+        <div class="sub res-time"></div>
+        <span class="badge res-badge">—</span>
+      </div>
+      <div class="gauge-wrap">
+        <svg width="120" height="120">
+          <circle cx="60" cy="60" r="52" stroke="var(--panel2)" stroke-width="10" fill="none"/>
+          <circle class="gauge-arc" cx="60" cy="60" r="52" stroke="var(--accent)" stroke-width="10" fill="none"
+                  stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="gauge-num"><b class="res-score">—</b><span>از ۱۰۰</span></div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px" class="res-components"></div>
+
+    <div class="two-col" style="margin-top:16px">
+      <div class="card" style="background:var(--panel2);padding:14px">
+        <b>🎯 نقاط تاکتیکی</b>
+        <div class="kv">
+          <b>قیمت آخر</b><span class="t-last"></span>
+          <b>محدوده ورود</b><span class="t-entry"></span>
+          <b>حد ضرر</b><span class="t-stop"></span>
+          <b>اهداف</b><span class="t-targets"></span>
+          <b>بازده/ریسک</b><span class="t-rr"></span>
+          <b>حجم مجاز موقعیت</b><span class="t-size"></span>
+        </div>
+        <ul class="plain t-notes"></ul>
+      </div>
+      <div class="card" style="background:var(--panel2);padding:14px">
+        <b>⚖️ دلایل و ریسک‌ها</b>
+        <div style="font-size:13px;margin-top:6px"><b class="sig-buy">مثبت:</b><ul class="plain res-reasons"></ul></div>
+        <div style="font-size:13px"><b class="sig-sell">ریسک:</b><ul class="plain res-risks"></ul></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px"><b>جمع‌بندی:</b> <span class="res-summary" style="color:var(--muted)"></span></div>
+    <div class="agents-trail res-trail"></div>
+    <div class="disclaimer res-disclaimer"></div>
+  </div>
+</template>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (v) => (v === null || v === undefined) ? '—' : v;
+
+function signalClass(s) {
+  return s === 'خرید' ? 'b-buy' : s === 'فروش' ? 'b-sell' :
+         s === 'نگهداری' ? 'b-hold' : 'b-watch';
+}
+function barColor(score) {
+  if (score === null) return 'var(--gray)';
+  if (score >= 70) return 'var(--green)';
+  if (score >= 45) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function showMsg(text, type) { $('msg').innerHTML = `<div class="msg ${type}">${text}</div>`; }
+
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('btn');
+  btn.disabled = true;
+  btn.innerHTML = 'در حال اجرای ایجنت‌ها...<span class="spin"></span>';
+  $('msg').innerHTML = '';
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ symbols: $('symbols').value })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) { showMsg(json.error || 'خطای نامشخص', 'error'); return; }
+    $('results').innerHTML = '';
+    json.results.forEach(renderResult);
+    if (json.errors.length) showMsg('⚠️ ' + json.errors.join('<br>'), 'error');
+    loadHistory();
+  } catch (err) {
+    showMsg('ارتباط با سرور برقرار نشد: ' + err, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 اجرای زنجیره ۴ ایجنت';
+  }
+});
+
+function renderResult(d) {
+  const tpl = $('tpl').content.cloneNode(true);
+  const c = tpl.querySelector('.card');
+  c.querySelector('.res-symbol').textContent = d.symbol;
+  c.querySelector('.res-time').textContent = d.created_at || '';
+
+  const badge = c.querySelector('.res-badge');
+  badge.textContent = d.signal;
+  badge.className = 'badge ' + signalClass(d.signal);
+
+  const score = d.total_score;
+  c.querySelector('.res-score').textContent = score;
+  c.querySelector('.res-score').style.color = barColor(score);
+  const arc = c.querySelector('.gauge-arc');
+  const C = 2 * Math.PI * 52;
+  arc.style.stroke = barColor(score);
+  arc.style.strokeDashoffset = C * (1 - score / 100);
+  arc.style.transition = 'stroke-dashoffset 1s ease';
+
+  // مؤلفه‌های وزنی
+  const compBox = c.querySelector('.res-components');
+  compBox.innerHTML = d.components.map(comp => {
+    const pct = comp.score === null ? 0 : comp.score;
+    return `<div class="comp-row">
+      <span>${comp.label}</span>
+      <div class="bar"><i style="width:${pct}%;background:${barColor(comp.score)}"></i></div>
+      <b style="text-align:left">${comp.score === null ? '—' : comp.score}</b>
+      <div class="reason">وزن ${comp.weight}٪ · ${comp.reason || ''}</div>
+    </div>`;
+  }).join('');
+
+  const t = d.tactics || {};
+  c.querySelector('.t-last').textContent = fmt(t.last_price);
+  c.querySelector('.t-entry').textContent = fmt(t.entry);
+  c.querySelector('.t-stop').textContent = fmt(t.stop_loss);
+  c.querySelector('.t-targets').textContent = (t.targets || []).join(' ← ');
+  c.querySelector('.t-rr').textContent = fmt(t.risk_reward) + (t.risk_reward !== 'نامشخص' ? ' : ۱' : '');
+  c.querySelector('.t-size').textContent = t.position_size_pct_of_capital ? (t.position_size_pct_of_capital + '٪ سرمایه') : '—';
+  c.querySelector('.t-notes').innerHTML = (t.notes || []).map(n => `<li>${n}</li>`).join('');
+
+  c.querySelector('.res-reasons').innerHTML = (d.reasons || []).map(r => `<li>${r}</li>`).join('');
+  c.querySelector('.res-risks').innerHTML = (d.risks || []).map(r => `<li>${r}</li>`).join('');
+  c.querySelector('.res-summary').textContent = d.summary || '';
+  c.querySelector('.res-trail').innerHTML = (d.agent_trail || []).map(a =>
+    `<span class="agent-chip"><b>${a.title}</b> · ${a.elapsed_sec}s</span>`).join('');
+  c.querySelector('.res-disclaimer').textContent = d.disclaimer || '';
+
+  $('results').appendChild(c);
+}
+
+// ---- تاریخچه ----
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/history');
+    const json = await res.json();
+    if (!json.ok) return;
+    $('histBody').innerHTML = json.data.map(row => `
+      <tr>
+        <td>${row.created_at}</td>
+        <td>${row.symbol}</td>
+        <td><b style="color:${barColor(row.score)}">${row.score ?? '—'}</b></td>
+        <td><span class="badge ${signalClass(row.signal)}">${row.signal}</span></td>
+        <td><a href="#" onclick="delRow(${row.id});return false" style="color:var(--red)">حذف</a></td>
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">هنوز تحلیلی ثبت نشده.</td></tr>';
+  } catch (e) { /* silent */ }
+}
+
+async function delRow(id) {
+  if (!confirm('این رکورد حذف شود؟')) return;
+  await fetch('/api/analysis/' + id, { method: 'DELETE' });
+  loadHistory();
+}
+$('refresh').addEventListener('click', loadHistory);
+
+// ---- تنظیم وزن‌ها ----
+document.querySelectorAll('input[type=range]').forEach(sl => {
+  sl.addEventListener('input', () => {
+    $('wv_' + sl.id.slice(2)).textContent = sl.value + '٪';
+  });
+});
+
+$('saveCfg').addEventListener('click', async () => {
+  const weights = {};
+  {{ labels.keys() | list | tojson }}.forEach(k => {
+    weights[k] = parseFloat($('w_' + k).value);
+  });
+  const body = {
+    weights,
+    thresholds: { buy: $('th_buy').value, hold: $('th_hold').value, watch: $('th_watch').value },
+    max_risk_per_trade_pct: $('risk').value
+  };
+  const res = await fetch('/api/config', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  const json = await res.json();
+  $('cfgMsg').textContent = json.ok ? '✅ ذخیره شد' : 'خطا در ذخیره';
+  setTimeout(() => $('cfgMsg').textContent = '', 2500);
+});
+
+loadHistory();
+</script>
+</body>
+</html>

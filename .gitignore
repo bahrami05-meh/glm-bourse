@@ -1,0 +1,22 @@
+# دیتابیس و لاگ محلی
+glm.db
+glm.db-wal
+glm.db-shm
+glm.log
+
+# پایتون
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# تنظیمات محلی کاربر (وزن‌ها شخصی است)
+config.json
+
+# سیستم‌عامل / ادیتور
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
