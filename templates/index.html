@@ -95,7 +95,7 @@
 
   <div class="card">
     <form id="form">
-      <label>نماد (شروع به تایپ کن و از لیست انتخاب کن — یا چند نماد را با کاما جدا کن)</label>
+      <label>نماد (تایپ کن و انتخاب کن — یا ISIN / لینک EasyTrader بچسبان — چند نماد: با کاما)</label>
       <div class="ac-wrap">
         <input type="text" id="symbols" value="{{ default_symbols }}" placeholder="مثلاً: فولاد" autocomplete="off" required>
         <div class="ac-list" id="acList"></div>
@@ -112,7 +112,7 @@
       <strong>👁️ واچ‌لیست</strong>
       <button type="button" class="btn-ghost" id="wlScan">🔍 بررسی همه</button>
     </div>
-    <div class="sub" style="margin-top:4px">نمادهای موردنظرت را اضافه کن؛ «بررسی همه» هر نماد را با ۴ ایجنت تحلیل و سیگنال جدید را با سیگنال قبلی مقایسه می‌کند.</div>
+    <div class="sub" style="margin-top:4px">نمادهای موردنظرت را اضافه کن (نام، ISIN یا لینک EasyTrader — چندتا با کاما)؛ «بررسی همه» هر نماد را با ۴ ایجنت تحلیل و سیگنال جدید را با سیگنال قبلی مقایسه می‌کند.</div>
     <div class="row" style="margin-top:12px;flex-wrap:wrap">
       <div class="ac-wrap" style="flex:1;min-width:160px">
         <input type="text" id="wlSymbol" placeholder="نام نماد — تایپ کن و انتخاب کن" autocomplete="off">
@@ -451,6 +451,7 @@ $('wlAdd').addEventListener('click', async () => {
   if (json.ok) {
     renderWatchlist(json.data);
     $('wlSymbol').value = ''; $('wlNote').value = '';
+    if (json.warning) $('wlMsg').innerHTML = `<div class="msg error">⚠️ ${json.warning}</div>`;
   } else {
     $('wlMsg').innerHTML = `<div class="msg error">${json.error || 'خطا'}</div>`;
   }
