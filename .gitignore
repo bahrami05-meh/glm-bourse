@@ -1,22 +1,20 @@
-# دیتابیس و لاگ محلی
+# runtime data
 glm.db
 glm.db-wal
 glm.db-shm
 glm.log
-
-# پایتون
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-
-# تنظیمات محلی کاربر (وزن‌ها شخصی است)
 config.json
 
-# سیستم‌عامل / ادیتور
-.DS_Store
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# secrets / env
+.env
+secrets.txt
+*.secret
+
+# os
 Thumbs.db
 desktop.ini
-.vscode/
-.idea/

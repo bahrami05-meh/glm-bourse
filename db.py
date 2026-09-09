@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""db.py — ذخیره تحلیل‌ها در SQLite (فایل glm.db کنار برنامه)."""
+"""db.py — ذخیره تحلیل‌ها و واچ‌لیست در SQLite (فایل glm.db کنار برنامه)."""
 import json
 import os
 import sqlite3
@@ -30,11 +30,18 @@ def init_db():
             " raw_json TEXT)"
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at DESC)")
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS watchlist ("
+            " symbol TEXT PRIMARY KEY,"
+            " note TEXT,"
+            " added_at TEXT NOT NULL)"
+        )
         conn.commit()
     finally:
         conn.close()
 
 
+# ---------------------------------------------------------------- analyses
 def save_analysis(symbol, result):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
@@ -81,6 +88,47 @@ def delete_analysis(item_id):
     conn = get_db()
     try:
         conn.execute("DELETE FROM analyses WHERE id=?", (item_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------- watchlist
+def watchlist():
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT symbol, note, added_at FROM watchlist ORDER BY added_at ASC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def watchlist_symbols():
+    return [row["symbol"] for row in watchlist()]
+
+
+def watchlist_add(symbol, note=""):
+    symbol = (symbol or "").strip()
+    if not symbol:
+        raise ValueError("نماد خالی است")
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO watchlist (symbol, note, added_at) VALUES (?,?,?) "
+            "ON CONFLICT(symbol) DO UPDATE SET note=excluded.note",
+            (symbol, note.strip(), datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def watchlist_remove(symbol):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM watchlist WHERE symbol=?", ((symbol or "").strip(),))
         conn.commit()
     finally:
         conn.close()

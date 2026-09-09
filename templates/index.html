@@ -72,6 +72,18 @@
   details summary{cursor:pointer;color:var(--muted);font-size:13px}
   .disclaimer{font-size:12px;color:var(--muted);border-top:1px dashed var(--border);margin-top:14px;padding-top:10px}
   .sig-sell{color:var(--red)} .sig-buy{color:var(--green)} .sig-hold{color:var(--amber)}
+  /* ---- autocomplete نماد ---- */
+  .ac-wrap{position:relative}
+  .ac-list{position:absolute;top:100%;right:0;left:0;z-index:50;background:var(--panel2);
+           border:1px solid var(--border);border-radius:10px;margin-top:4px;max-height:280px;
+           overflow-y:auto;display:none;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .ac-item{padding:9px 13px;cursor:pointer;border-bottom:1px solid var(--border);
+           display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .ac-item:last-child{border-bottom:none}
+  .ac-item:hover,.ac-item.active{background:#233052}
+  .ac-item .ac-ticker{font-weight:800;font-size:15px}
+  .ac-item .ac-name{color:var(--muted);font-size:12px;text-align:left;flex:1;overflow:hidden;
+                    text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -83,14 +95,38 @@
 
   <div class="card">
     <form id="form">
-      <label>نماد (چند نماد: با کاما جدا کنید)</label>
-      <input type="text" id="symbols" value="{{ default_symbols }}" placeholder="مثلاً: فولاد، فملی، شبندر" required>
+      <label>نماد (شروع به تایپ کن و از لیست انتخاب کن — یا چند نماد را با کاما جدا کن)</label>
+      <div class="ac-wrap">
+        <input type="text" id="symbols" value="{{ default_symbols }}" placeholder="مثلاً: فولاد" autocomplete="off" required>
+        <div class="ac-list" id="acList"></div>
+      </div>
       <button type="submit" class="btn-primary" id="btn">🚀 اجرای زنجیره ۴ ایجنت</button>
     </form>
     <div id="msg"></div>
   </div>
 
   <div id="results"></div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong>👁️ واچ‌لیست</strong>
+      <button type="button" class="btn-ghost" id="wlScan">🔍 بررسی همه</button>
+    </div>
+    <div class="sub" style="margin-top:4px">نمادهای موردنظرت را اضافه کن؛ «بررسی همه» هر نماد را با ۴ ایجنت تحلیل و سیگنال جدید را با سیگنال قبلی مقایسه می‌کند.</div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">
+      <div class="ac-wrap" style="flex:1;min-width:160px">
+        <input type="text" id="wlSymbol" placeholder="نام نماد — تایپ کن و انتخاب کن" autocomplete="off">
+        <div class="ac-list" id="acListWl"></div>
+      </div>
+      <input type="text" id="wlNote" placeholder="یادداشت (اختیاری)" style="flex:1;min-width:160px">
+      <button type="button" class="btn-ghost" id="wlAdd">➕ افزودن</button>
+    </div>
+    <table>
+      <thead><tr><th>نماد</th><th>یادداشت</th><th>آخرین سیگنال</th><th></th></tr></thead>
+      <tbody id="wlBody"></tbody>
+    </table>
+    <div id="wlMsg"></div>
+  </div>
 
   <div class="card">
     <details>
@@ -191,6 +227,68 @@ function barColor(score) {
 }
 
 function showMsg(text, type) { $('msg').innerHTML = `<div class="msg ${type}">${text}</div>`; }
+
+// ---- autocomplete نماد — قابل اتصال به هر فیلد ورودی ----
+function attachAutocomplete(inputId, listId, onPick) {
+  const input = $(inputId), list = $(listId);
+  let items = [], idx = -1, timer = null;
+
+  const hide = () => { list.style.display = 'none'; idx = -1; };
+  const render = () => {
+    if (!items.length) { hide(); return; }
+    list.innerHTML = items.map((r, i) => `
+      <div class="ac-item ${i === idx ? 'active' : ''}" data-i="${i}">
+        <span class="ac-ticker">${r.ticker}</span>
+        <span class="ac-name">${r.name}</span>
+      </div>`).join('');
+    list.style.display = 'block';
+  };
+  const pick = (i) => {
+    if (!items[i]) return;
+    input.value = items[i].ticker;
+    items = []; render();
+    input.dispatchEvent(new Event('ac-picked'));
+    input.focus();
+  };
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const last = input.value.trim();
+    if (last.length < 2) { items = []; render(); return; }
+    timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/search/' + encodeURIComponent(last));
+        const json = await res.json();
+        items = (json.results || []).filter(r => r.ticker);
+        idx = -1;
+        render();
+      } catch (e) { items = []; render(); }
+    }, 250);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (list.style.display !== 'block') return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); render(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx - 1, 0); render(); }
+    else if (e.key === 'Enter' && idx >= 0) { e.preventDefault(); pick(idx); }
+    else if (e.key === 'Escape') { hide(); }
+  });
+  list.addEventListener('mousedown', (e) => {
+    const item = e.target.closest('.ac-item');
+    if (item) { e.preventDefault(); pick(parseInt(item.dataset.i, 10)); }
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.ac-wrap') || !e.target.closest('#' + inputId)) hide();
+  });
+}
+
+// فیلد اصلی: تایپ کن، از لیست انتخاب کن، کاما می‌گذارد تا نماد بعدی تایپ شود
+const mainInput = $('symbols');
+attachAutocomplete('symbols', 'acList');
+mainInput.addEventListener('ac-picked', () => {
+  if (!/[,،]\s*$/.test(mainInput.value)) mainInput.value += '، ';
+});
+// فیلد واچ‌لیست: انتخاب مستقیم → فوکوس روی یادداشت
+attachAutocomplete('wlSymbol', 'acListWl');
 
 $('form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -316,6 +414,91 @@ $('saveCfg').addEventListener('click', async () => {
   setTimeout(() => $('cfgMsg').textContent = '', 2500);
 });
 
+// ---- واچ‌لیست ----
+function renderWatchlist(rows) {
+  $('wlBody').innerHTML = (rows || []).map(r => `
+    <tr>
+      <td><b>${r.symbol}</b></td>
+      <td style="color:var(--muted)">${r.note || '—'}</td>
+      <td id="wlSig_${wlId(r.symbol)}" style="color:var(--muted)">—</td>
+      <td><a href="#" onclick="wlDel('${encodeURIComponent(r.symbol)}');return false" style="color:var(--red)">حذف</a></td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:var(--muted)">واچ‌لیست خالی است — اولین نماد را اضافه کن.</td></tr>';
+}
+
+// شناسه امن DOM از نام نماد فارسی
+function wlId(sym) {
+  let h = 0;
+  for (let i = 0; i < sym.length; i++) { h = ((h << 5) - h + sym.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+
+async function loadWatchlist() {
+  try {
+    const res = await fetch('/api/watchlist');
+    const json = await res.json();
+    if (json.ok) renderWatchlist(json.data);
+  } catch (e) { /* silent */ }
+}
+
+$('wlAdd').addEventListener('click', async () => {
+  const symbol = $('wlSymbol').value.trim();
+  if (!symbol) { $('wlMsg').innerHTML = '<div class="msg error">نام نماد را وارد کنید.</div>'; return; }
+  const res = await fetch('/api/watchlist', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ symbol, note: $('wlNote').value })
+  });
+  const json = await res.json();
+  if (json.ok) {
+    renderWatchlist(json.data);
+    $('wlSymbol').value = ''; $('wlNote').value = '';
+  } else {
+    $('wlMsg').innerHTML = `<div class="msg error">${json.error || 'خطا'}</div>`;
+  }
+});
+
+async function wlDel(symbol) {
+  if (!confirm('«' + decodeURIComponent(symbol) + '» از واچ‌لیست حذف شود؟')) return;
+  const res = await fetch('/api/watchlist/' + symbol, { method: 'DELETE' });
+  const json = await res.json();
+  if (json.ok) renderWatchlist(json.data);
+}
+
+// انتخاب نماد از autocomplete واچ‌لیست → فیلد یادداشت فوکوس بگیرد
+$('wlSymbol').addEventListener('ac-picked', () => $('wlNote').focus());
+
+$('wlScan').addEventListener('click', async () => {
+  const btn = $('wlScan');
+  btn.disabled = true;
+  btn.innerHTML = 'در حال بررسی...<span class="spin"></span>';
+  try {
+    const res = await fetch('/api/watchlist/scan', { method: 'POST' });
+    const json = await res.json();
+    if (!json.ok) {
+      $('wlMsg').innerHTML = `<div class="msg error">${json.error || 'خطا'}</div>`;
+      return;
+    }
+    $('results').innerHTML = '';
+    json.results.forEach(r => {
+      const cell = document.getElementById('wlSig_' + wlId(r.symbol));
+      if (cell) {
+        const changed = r.prev_signal && r.prev_signal !== r.signal;
+        cell.innerHTML = `<span class="badge ${signalClass(r.signal)}">${r.signal}</span> ${r.total_score}`
+          + (changed ? ` <span style="color:var(--amber);font-size:12px">(تغییر از ${r.prev_signal})</span>` : '');
+      }
+      renderResult(r); // کارت کامل تحلیل مثل فرم عادی
+    });
+    if (json.errors.length) $('wlMsg').innerHTML = '<div class="msg error">⚠️ ' + json.errors.join('<br>') + '</div>';
+    else $('wlMsg').innerHTML = `<div class="msg info">✅ ${json.scanned} نماد بررسی شد.</div>`;
+    loadHistory();
+  } catch (err) {
+    $('wlMsg').innerHTML = '<div class="msg error">ارتباط با سرور برقرار نشد: ' + err + '</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 بررسی همه';
+  }
+});
+
+loadWatchlist();
 loadHistory();
 </script>
 </body>

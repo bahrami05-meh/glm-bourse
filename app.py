@@ -19,10 +19,13 @@ from flask import Flask, jsonify, render_template, request
 import scoring
 import db
 from agents.base import AgentError
+from agents import tsetmc_client as tsetmc
 from agents.collector import CollectorAgent
 from agents.processor import ProcessorAgent
 from agents.tactician import TacticianAgent
 from agents.announcer import AnnouncerAgent
+
+request_utils = __import__("requests").utils
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH = os.path.join(BASE_DIR, "glm.log")
@@ -83,6 +86,105 @@ def run_pipeline(symbol):
     return result
 
 
+# ---------------------------------------------------------------------- نماد
+def _clean_search_rows(raw):
+    """صف کاندیدهای جستجو را فیلتر و مرتب می‌کند (فقط سهام، بدون اختیار/قرارداد)."""
+    rows = [r for r in (raw or []) if isinstance(r, dict) and r.get("insCode")]
+    out = []
+    for r in rows:
+        tiker = str(r.get("lVal18AFC") or "").strip()
+        name = str(r.get("lVal30") or "").strip()
+        typ = str(r.get("cSoValSr") or "")
+        # اختیار معامله/حق تقدم از نام مشخص است؛ از لیست پیشنهاد حذف می‌کنیم
+        if any(k in name or k in tiker for k in ("اختیار", "حق تقدم", "اتص", "سلام")):
+            continue
+        out.append({
+            "ins_code": str(r.get("insCode")),
+            "ticker": tiker,
+            "name": name,
+        })
+    return out[:10]
+
+
+@app.get("/api/search/<path:query>")
+def api_search(query):
+    """جستجوی زنده نماد در TSETMC برای autocomplete فیلد ورودی."""
+    query = (query or "").strip()
+    if len(query) < 2:
+        return jsonify(ok=True, results=[])
+    try:
+        data = tsetmc._get(tsetmc.BASE + "/api/Instrument/GetInstrumentSearch/" +
+                           request_utils.quote(query))
+        return jsonify(ok=True, results=_clean_search_rows(data.get("instrumentSearch")))
+    except (tsetmc.MarketDataError, Exception) as exc:
+        log.warning("جستجوی نماد ناموفق: %s", exc)
+        return jsonify(ok=True, results=[])
+
+
+# ---------------------------------------------------------------------- watchlist
+@app.get("/api/watchlist")
+def api_watchlist():
+    conn_symbols = db.watchlist_symbols()
+    return jsonify(ok=True, data=db.watchlist(), symbols=", ".join(conn_symbols))
+
+
+@app.post("/api/watchlist")
+def api_watchlist_add():
+    data = request.get_json(silent=True) or {}
+    symbol = (data.get("symbol") or "").strip()
+    if not symbol:
+        return jsonify(ok=False, error="نام نماد را وارد کنید."), 400
+    try:
+        db.watchlist_add(symbol, data.get("note") or "")
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    return jsonify(ok=True, data=db.watchlist())
+
+
+@app.delete("/api/watchlist/<path:symbol>")
+def api_watchlist_delete(symbol):
+    db.watchlist_remove(symbol)
+    return jsonify(ok=True, data=db.watchlist())
+
+
+@app.post("/api/watchlist/scan")
+def api_watchlist_scan():
+    """همه نمادهای واچ‌لیست را تحلیل و مقایسه با سیگنال قبلی هر نماد می‌کند."""
+    symbols = db.watchlist_symbols()
+    if not symbols:
+        return jsonify(ok=False, error="واچ‌لیست خالی است."), 400
+
+    # آخرین سیگنال ثبت‌شده هر نماد (قبل از این اسکن) برای تشخیص تغییر سیگنال
+    prev = {}
+    conn = db.get_db()
+    try:
+        rows = conn.execute(
+            "SELECT symbol, signal FROM analyses WHERE id IN "
+            "(SELECT MAX(id) FROM analyses GROUP BY symbol)"
+        ).fetchall()
+        for r in rows:
+            prev[r["symbol"]] = r["signal"]
+    finally:
+        conn.close()
+
+    results, errors = [], []
+    for sym in symbols:
+        try:
+            result = run_pipeline(sym)
+            rid, created = db.save_analysis(sym, result)
+            result["id"] = rid
+            result["created_at"] = created
+            result["prev_signal"] = prev.get(sym)
+            results.append(result)
+        except AgentError as exc:
+            errors.append("%s: %s" % (sym, exc))
+        except Exception as exc:
+            log.exception("خطای غیرمنتظره در اسکن %s", sym)
+            errors.append("%s: خطای داخلی (%s)" % (sym, exc))
+
+    return jsonify(ok=True, results=results, errors=errors, scanned=len(results))
+
+
 # ---------------------------------------------------------------------- routes
 @app.get("/api/health")
 def health():
@@ -97,7 +199,8 @@ def index():
                            weights=scoring.normalize_weights(cfg.get("weights", {})),
                            labels=scoring.COMPONENT_LABELS,
                            thresholds=cfg.get("thresholds", {}),
-                           risk_pct=cfg.get("max_risk_per_trade_pct", 5))
+                           risk_pct=cfg.get("max_risk_per_trade_pct", 5),
+                           watchlist=db.watchlist())
 
 
 @app.post("/api/analyze")
